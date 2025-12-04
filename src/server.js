@@ -6,6 +6,59 @@ const puppeteer = require('puppeteer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Pool de conexión persistente para Browserless
+let browserPool = null;
+let browserPoolError = null;
+
+/**
+ * Obtiene o crea el pool de conexión persistente
+ * @returns {Promise<object>} - Browser del pool
+ */
+async function getBrowserPool() {
+  // Si ya existe y está conectado, devolverlo
+  if (browserPool) {
+    try {
+      await browserPool.version(); // Test de conexión
+      console.log('✅ Reutilizando conexión existente a Browserless');
+      return browserPool;
+    } catch (e) {
+      console.warn('⚠️ Conexión existente inválida, reconectando...');
+      browserPool = null;
+    }
+  }
+
+  // Si hubo error previo, no reintentar inmediatamente
+  if (browserPoolError && Date.now() - browserPoolError.timestamp < 5000) {
+    throw new Error(`Esperando antes de reintentar conexión a Browserless. Error previo: ${browserPoolError.message}`);
+  }
+
+  const token = process.env.BROWSERLESS_TOKEN;
+  if (!token) {
+    throw new Error('BROWSERLESS_TOKEN no configurado');
+  }
+
+  try {
+    const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
+    console.log(`📡 Creando nueva conexión persistente a Browserless (${tokenPreview})...`);
+    
+    const browserlessUrl = `wss://chrome.browserless.io?token=${token}`;
+    browserPool = await puppeteer.connect({
+      browserWSEndpoint: browserlessUrl
+    });
+    
+    console.log('✅ Conexión persistente a Browserless establecida');
+    browserPoolError = null;
+    return browserPool;
+  } catch (error) {
+    console.error('❌ Error al conectar a Browserless:', error.message);
+    browserPoolError = {
+      message: error.message,
+      timestamp: Date.now()
+    };
+    throw error;
+  }
+}
+
 /**
  * Formatea una fecha a formato YYYY/MM/DD para la URL
  * @param {Date} date - Fecha a formatear
@@ -92,46 +145,12 @@ function extractReadings(html) {
 }
 
 /**
- * Intenta conectar con reintentos
- * @param {string} token - Token de Browserless
- * @param {number} intentos - Número de intentos (máximo 3)
- * @returns {Promise<object>} - Browser conectado
- */
-async function conectarBrowserless(token, intentos = 3) {
-  for (let i = 1; i <= intentos; i++) {
-    try {
-      const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
-      console.log(`Intento ${i}/${intentos} - Conectando a Browserless (${tokenPreview})...`);
-      
-      const browserlessUrl = `wss://chrome.browserless.io?token=${token}`;
-      const browser = await puppeteer.connect({
-        browserWSEndpoint: browserlessUrl
-      });
-      
-      console.log('✅ Conectado a Browserless exitosamente');
-      return browser;
-    } catch (error) {
-      console.error(`❌ Intento ${i} fallido:`, error.message);
-      
-      if (i < intentos) {
-        // Esperar progresivamente más tiempo entre intentos (1s, 2s, 3s)
-        const espera = i * 1000;
-        console.log(`Esperando ${espera}ms antes de reintentar...`);
-        await new Promise(resolve => setTimeout(resolve, espera));
-      } else {
-        throw error;
-      }
-    }
-  }
-}
-
-/**
  * Obtiene las lecturas del día de Vatican News usando Puppeteer
  * @param {string} fecha - Fecha en formato YYYY-MM-DD
  * @returns {Promise<object>} - Objeto con las lecturas
  */
 async function getReadingsFromVatican(fecha) {
-  let browser;
+  let page;
   try {
     const date = new Date(fecha);
     if (isNaN(date.getTime())) {
@@ -141,14 +160,12 @@ async function getReadingsFromVatican(fecha) {
     const urlDate = formatDateForUrl(date);
     const url = `https://www.vaticannews.va/es/evangelio-de-hoy/${urlDate}.html`;
 
-    // Usar Puppeteer para cargar la página completamente
-    const isProduction = process.env.NODE_ENV === 'production';
+    let browser;
     
     if (process.env.BROWSERLESS_TOKEN) {
-      // Usar Browserless si está configurado
+      // Usar pool persistente de Browserless
       try {
-        const token = process.env.BROWSERLESS_TOKEN;
-        browser = await conectarBrowserless(token);
+        browser = await getBrowserPool();
       } catch (browserlessError) {
         console.error('❌ Browserless no disponible, usando fallback a Puppeteer local...');
         try {
@@ -160,9 +177,7 @@ async function getReadingsFromVatican(fecha) {
           console.log('✅ Fallback a Puppeteer local exitoso');
         } catch (puppeteerError) {
           console.error('❌ Error en fallback:', puppeteerError.message);
-          const token = process.env.BROWSERLESS_TOKEN;
-          const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
-          throw new Error(`No se pudo conectar a Browserless (reintentos agotados) ni a Puppeteer local. Token: ${tokenPreview}. Error Browserless: ${browserlessError.message}`);
+          throw new Error(`No se pudo conectar a Browserless ni a Puppeteer local. Error: ${browserlessError.message}`);
         }
       }
     } else {
@@ -174,7 +189,7 @@ async function getReadingsFromVatican(fecha) {
       });
     }
     
-    const page = await browser.newPage();
+    page = await browser.newPage();
     
     await page.goto(url, { 
       waitUntil: 'networkidle2',
@@ -183,6 +198,7 @@ async function getReadingsFromVatican(fecha) {
 
     const html = await page.content();
     await page.close();
+    page = null;
     
     const readings = extractReadings(html);
 
@@ -198,23 +214,19 @@ async function getReadingsFromVatican(fecha) {
     };
   } catch (error) {
     console.error('Error en getReadingsFromVatican:', error.message);
-    const tokenInfo = process.env.BROWSERLESS_TOKEN ? 
-      'Token ' + process.env.BROWSERLESS_TOKEN.substring(0, 10) + '...' + process.env.BROWSERLESS_TOKEN.substring(process.env.BROWSERLESS_TOKEN.length - 5) + 
-      ' (longitud: ' + process.env.BROWSERLESS_TOKEN.length + ')' :
-      'NO CONFIGURADO';
     return {
       success: false,
       error: error.message,
       fecha: fecha,
-      browserlessToken: tokenInfo,
-      hint: 'Si estás en Render, configura la variable BROWSERLESS_TOKEN. Obtén tu token gratis en https://www.browserless.io/'
+      hint: 'Usando conexión persistente. Si el error persiste, intenta más tarde.'
     };
   } finally {
-    if (browser && !process.env.BROWSERLESS_TOKEN) {
+    // Cerrar página pero NO cerrar el browser si es del pool
+    if (page) {
       try {
-        await browser.close();
+        await page.close();
       } catch (e) {
-        // Ignorar errores al cerrar
+        // Ignorar errores
       }
     }
   }
