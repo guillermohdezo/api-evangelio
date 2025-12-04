@@ -37,25 +37,31 @@ API Node.js/Express que extrae las lecturas del día desde Vatican News.
 
 ### Producción (Render)
 
-**⚠️ IMPORTANTE:** Render no permite instalar Chrome automáticamente (límite de espacio). Por eso necesitas usar Browserless (Chrome remoto gratuito).
+**⚠️ IMPORTANTE:** Render no permite instalar Chrome automáticamente (límite de espacio). Tienes varias opciones:
 
-#### Pasos de configuración:
+#### Opción 1: Browserless (Recomendado)
 
 1. **Obtener token de Browserless:**
    - Ve a https://www.browserless.io/
    - Regístrate (gratis)
-   - Copia tu API token
+   - Obtén tu API token
 
 2. **En Render:**
-   - Ve a tu Web Service
    - **Settings → Environment Variables**
    - Agrega: `BROWSERLESS_TOKEN` = tu token
-   - Haz clic en **Save**
-   - Ve a **Deploys** → **Trigger Deploy**
+   - **Save** → **Trigger Deploy**
 
-3. **Listo!** El API usará Chrome remoto sin problemas.
+#### Opción 2: Usar otra alternativa (si Browserless no funciona)
 
-El API estará disponible en: `https://api-evangelio.onrender.com/api/lecturas?fecha=2025-12-04`
+Puedes usar otros servicios como:
+- **BrowserStack** (https://www.browserstack.com/) - Versión gratuita disponible
+- **Headless Chrome API** (https://chromeheadless.io/) 
+- **Apify** (https://apify.com/) - Tiene plan gratuito
+
+O simplemente deployer en un servidor con Chrome preinstalado como:
+- **Railway** (mejor soporte para Chrome)
+- **DigitalOcean App Platform**
+- **Azure Container Instances**
 
 ## 📡 Endpoints
 

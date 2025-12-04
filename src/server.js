@@ -128,10 +128,20 @@ async function getReadingsFromVatican(fecha) {
         console.log('✅ Conectado a Browserless exitosamente');
       } catch (browserlessError) {
         console.error('❌ Error con Browserless:', browserlessError.message);
-        console.error('Detalles:', browserlessError);
-        const token = process.env.BROWSERLESS_TOKEN;
-        const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
-        throw new Error(`No se pudo conectar a Browserless. Token: ${tokenPreview}. Error: ${browserlessError.message}`);
+        console.error('Intentando fallback a Puppeteer local...');
+        try {
+          // Intentar con Puppeteer local como fallback
+          browser = await puppeteer.launch({
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+          });
+          console.log('✅ Fallback a Puppeteer local exitoso');
+        } catch (puppeteerError) {
+          console.error('❌ Error en fallback:', puppeteerError.message);
+          const token = process.env.BROWSERLESS_TOKEN;
+          const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
+          throw new Error(`No se pudo conectar ni a Browserless (Token: ${tokenPreview}, Error: ${browserlessError.message}) ni a Puppeteer local (Error: ${puppeteerError.message})`);
+        }
       }
     } else {
       // Usar Puppeteer local
