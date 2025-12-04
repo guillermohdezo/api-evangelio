@@ -108,10 +108,22 @@ async function getReadingsFromVatican(fecha) {
     const url = `https://www.vaticannews.va/es/evangelio-de-hoy/${urlDate}.html`;
 
     // Usar Puppeteer para cargar la página completamente
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction && process.env.BROWSERLESS_TOKEN) {
+      // Usar Browserless en producción si está disponible
+      const browserlessUrl = `https://chrome.browserless.io/connect?token=${process.env.BROWSERLESS_TOKEN}`;
+      browser = await puppeteer.connect({
+        browserWSEndpoint: browserlessUrl
+      });
+    } else {
+      // Usar Puppeteer local
+      browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+    }
+    
     const page = await browser.newPage();
     
     await page.goto(url, { 
@@ -120,6 +132,8 @@ async function getReadingsFromVatican(fecha) {
     });
 
     const html = await page.content();
+    await page.close();
+    
     const readings = extractReadings(html);
 
     return {
@@ -139,7 +153,7 @@ async function getReadingsFromVatican(fecha) {
       fecha: fecha
     };
   } finally {
-    if (browser) {
+    if (browser && !process.env.BROWSERLESS_TOKEN) {
       await browser.close();
     }
   }

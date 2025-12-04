@@ -17,6 +17,8 @@ API Node.js/Express que extrae las lecturas del día desde Vatican News.
 
 ## 🚀 Instalación y Uso
 
+### Local
+
 1. **Instalar dependencias:**
    ```bash
    npm install
@@ -32,6 +34,21 @@ API Node.js/Express que extrae las lecturas del día desde Vatican News.
    ```
 
 3. **El servidor escuchará en:** `http://localhost:3000`
+
+### Producción (Render)
+
+#### Opción 1: Con Puppeteer (requiere ~500MB de espacio)
+El API descargará Chrome automáticamente durante el build. Puede fallar en Render si no hay suficiente espacio.
+
+#### Opción 2: Con Browserless (Recomendado) ⭐
+
+1. Crea una cuenta gratuita en https://www.browserless.io/
+2. Obtén tu API token
+3. En Render, agrega una variable de entorno:
+   - `BROWSERLESS_TOKEN`: tu token de Browserless
+4. Deploy del proyecto
+
+El API detectará automáticamente si está en producción y usará Browserless si está disponible.
 
 ## 📡 Endpoints
 
