@@ -113,14 +113,19 @@ async function getReadingsFromVatican(fecha) {
     if (process.env.BROWSERLESS_TOKEN) {
       // Usar Browserless si está configurado
       try {
-        console.log('Usando Browserless...');
-        const browserlessUrl = `https://chrome.browserless.io/connect?token=${process.env.BROWSERLESS_TOKEN}`;
+        console.log('Usando Browserless con token:', process.env.BROWSERLESS_TOKEN.substring(0, 10) + '...');
+        // Probar con endpoint de websocket
+        const browserlessUrl = `wss://chrome.browserless.io?token=${process.env.BROWSERLESS_TOKEN}`;
+        console.log('Conectando a:', browserlessUrl.replace(process.env.BROWSERLESS_TOKEN, 'TOKEN'));
+        
         browser = await puppeteer.connect({
           browserWSEndpoint: browserlessUrl
         });
+        console.log('✅ Conectado a Browserless exitosamente');
       } catch (browserlessError) {
-        console.error('Error con Browserless:', browserlessError.message);
-        throw new Error('No se pudo conectar a Browserless. Verifica tu token.');
+        console.error('❌ Error con Browserless:', browserlessError.message);
+        console.error('Detalles:', browserlessError);
+        throw new Error(`No se pudo conectar a Browserless. Error: ${browserlessError.message}. Verifica que tu token sea válido.`);
       }
     } else {
       // Usar Puppeteer local
