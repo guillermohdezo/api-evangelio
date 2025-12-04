@@ -2,9 +2,11 @@ services:
   - type: web
     name: api-evangelio
     runtime: node
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PUPPETEER_SKIP_DOWNLOAD
+        value: "false"
 

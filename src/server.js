@@ -6,13 +6,6 @@ const puppeteer = require('puppeteer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración de Puppeteer para entornos sin Chrome preinstalado
-const puppeteerConfig = {
-  headless: 'new',
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
-};
-
 /**
  * Formatea una fecha a formato YYYY/MM/DD para la URL
  * @param {Date} date - Fecha a formatear
@@ -115,7 +108,10 @@ async function getReadingsFromVatican(fecha) {
     const url = `https://www.vaticannews.va/es/evangelio-de-hoy/${urlDate}.html`;
 
     // Usar Puppeteer para cargar la página completamente
-    browser = await puppeteer.launch(puppeteerConfig);
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
     const page = await browser.newPage();
     
     await page.goto(url, { 
