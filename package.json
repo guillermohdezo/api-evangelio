@@ -5,8 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "build": "npx puppeteer browsers install chrome"
+    "dev": "nodemon src/server.js"
   },
   "keywords": [
     "evangelio",
@@ -20,6 +19,15 @@
     "cheerio": "^1.0.0-rc.12",
     "express": "^4.18.2",
     "puppeteer": "^21.6.0"
+  },
+  "overrides": {
+    "puppeteer": {
+      "puppeteer-core": {
+        "@puppeteer/browsers": {
+          "devtools-protocol": "0.0.1233857"
+        }
+      }
+    }
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
