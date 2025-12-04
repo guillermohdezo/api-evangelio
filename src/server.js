@@ -110,14 +110,21 @@ async function getReadingsFromVatican(fecha) {
     // Usar Puppeteer para cargar la página completamente
     const isProduction = process.env.NODE_ENV === 'production';
     
-    if (isProduction && process.env.BROWSERLESS_TOKEN) {
-      // Usar Browserless en producción si está disponible
-      const browserlessUrl = `https://chrome.browserless.io/connect?token=${process.env.BROWSERLESS_TOKEN}`;
-      browser = await puppeteer.connect({
-        browserWSEndpoint: browserlessUrl
-      });
+    if (process.env.BROWSERLESS_TOKEN) {
+      // Usar Browserless si está configurado
+      try {
+        console.log('Usando Browserless...');
+        const browserlessUrl = `https://chrome.browserless.io/connect?token=${process.env.BROWSERLESS_TOKEN}`;
+        browser = await puppeteer.connect({
+          browserWSEndpoint: browserlessUrl
+        });
+      } catch (browserlessError) {
+        console.error('Error con Browserless:', browserlessError.message);
+        throw new Error('No se pudo conectar a Browserless. Verifica tu token.');
+      }
     } else {
       // Usar Puppeteer local
+      console.log('Usando Puppeteer local...');
       browser = await puppeteer.launch({
         headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -147,14 +154,20 @@ async function getReadingsFromVatican(fecha) {
       }
     };
   } catch (error) {
+    console.error('Error en getReadingsFromVatican:', error.message);
     return {
       success: false,
       error: error.message,
-      fecha: fecha
+      fecha: fecha,
+      hint: 'Si estás en Render, configura la variable BROWSERLESS_TOKEN. Obtén tu token gratis en https://www.browserless.io/'
     };
   } finally {
     if (browser && !process.env.BROWSERLESS_TOKEN) {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch (e) {
+        // Ignorar errores al cerrar
+      }
     }
   }
 }

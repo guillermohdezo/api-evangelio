@@ -37,18 +37,25 @@ API Node.js/Express que extrae las lecturas del día desde Vatican News.
 
 ### Producción (Render)
 
-#### Opción 1: Con Puppeteer (requiere ~500MB de espacio)
-El API descargará Chrome automáticamente durante el build. Puede fallar en Render si no hay suficiente espacio.
+**⚠️ IMPORTANTE:** Render no permite instalar Chrome automáticamente (límite de espacio). Por eso necesitas usar Browserless (Chrome remoto gratuito).
 
-#### Opción 2: Con Browserless (Recomendado) ⭐
+#### Pasos de configuración:
 
-1. Crea una cuenta gratuita en https://www.browserless.io/
-2. Obtén tu API token
-3. En Render, agrega una variable de entorno:
-   - `BROWSERLESS_TOKEN`: tu token de Browserless
-4. Deploy del proyecto
+1. **Obtener token de Browserless:**
+   - Ve a https://www.browserless.io/
+   - Regístrate (gratis)
+   - Copia tu API token
 
-El API detectará automáticamente si está en producción y usará Browserless si está disponible.
+2. **En Render:**
+   - Ve a tu Web Service
+   - **Settings → Environment Variables**
+   - Agrega: `BROWSERLESS_TOKEN` = tu token
+   - Haz clic en **Save**
+   - Ve a **Deploys** → **Trigger Deploy**
+
+3. **Listo!** El API usará Chrome remoto sin problemas.
+
+El API estará disponible en: `https://api-evangelio.onrender.com/api/lecturas?fecha=2025-12-04`
 
 ## 📡 Endpoints
 
