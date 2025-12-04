@@ -113,10 +113,14 @@ async function getReadingsFromVatican(fecha) {
     if (process.env.BROWSERLESS_TOKEN) {
       // Usar Browserless si está configurado
       try {
-        console.log('Usando Browserless con token:', process.env.BROWSERLESS_TOKEN.substring(0, 10) + '...');
+        const token = process.env.BROWSERLESS_TOKEN;
+        const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
+        console.log('Usando Browserless con token:', tokenPreview);
+        console.log('Token completo para debug:', token);
+        console.log('Longitud del token:', token.length);
         // Probar con endpoint de websocket
-        const browserlessUrl = `wss://chrome.browserless.io?token=${process.env.BROWSERLESS_TOKEN}`;
-        console.log('Conectando a:', browserlessUrl.replace(process.env.BROWSERLESS_TOKEN, 'TOKEN'));
+        const browserlessUrl = `wss://chrome.browserless.io?token=${token}`;
+        console.log('Conectando a:', browserlessUrl.replace(token, 'TOKEN'));
         
         browser = await puppeteer.connect({
           browserWSEndpoint: browserlessUrl
@@ -125,7 +129,9 @@ async function getReadingsFromVatican(fecha) {
       } catch (browserlessError) {
         console.error('❌ Error con Browserless:', browserlessError.message);
         console.error('Detalles:', browserlessError);
-        throw new Error(`No se pudo conectar a Browserless. Error: ${browserlessError.message}. Verifica que tu token sea válido.`);
+        const token = process.env.BROWSERLESS_TOKEN;
+        const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
+        throw new Error(`No se pudo conectar a Browserless. Token: ${tokenPreview}. Error: ${browserlessError.message}`);
       }
     } else {
       // Usar Puppeteer local
@@ -160,10 +166,15 @@ async function getReadingsFromVatican(fecha) {
     };
   } catch (error) {
     console.error('Error en getReadingsFromVatican:', error.message);
+    const tokenInfo = process.env.BROWSERLESS_TOKEN ? 
+      'Token ' + process.env.BROWSERLESS_TOKEN.substring(0, 10) + '...' + process.env.BROWSERLESS_TOKEN.substring(process.env.BROWSERLESS_TOKEN.length - 5) + 
+      ' (longitud: ' + process.env.BROWSERLESS_TOKEN.length + ')' :
+      'NO CONFIGURADO';
     return {
       success: false,
       error: error.message,
       fecha: fecha,
+      browserlessToken: tokenInfo,
       hint: 'Si estás en Render, configura la variable BROWSERLESS_TOKEN. Obtén tu token gratis en https://www.browserless.io/'
     };
   } finally {
