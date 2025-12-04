@@ -92,6 +92,40 @@ function extractReadings(html) {
 }
 
 /**
+ * Intenta conectar con reintentos
+ * @param {string} token - Token de Browserless
+ * @param {number} intentos - Número de intentos (máximo 3)
+ * @returns {Promise<object>} - Browser conectado
+ */
+async function conectarBrowserless(token, intentos = 3) {
+  for (let i = 1; i <= intentos; i++) {
+    try {
+      const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
+      console.log(`Intento ${i}/${intentos} - Conectando a Browserless (${tokenPreview})...`);
+      
+      const browserlessUrl = `wss://chrome.browserless.io?token=${token}`;
+      const browser = await puppeteer.connect({
+        browserWSEndpoint: browserlessUrl
+      });
+      
+      console.log('✅ Conectado a Browserless exitosamente');
+      return browser;
+    } catch (error) {
+      console.error(`❌ Intento ${i} fallido:`, error.message);
+      
+      if (i < intentos) {
+        // Esperar progresivamente más tiempo entre intentos (1s, 2s, 3s)
+        const espera = i * 1000;
+        console.log(`Esperando ${espera}ms antes de reintentar...`);
+        await new Promise(resolve => setTimeout(resolve, espera));
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
+/**
  * Obtiene las lecturas del día de Vatican News usando Puppeteer
  * @param {string} fecha - Fecha en formato YYYY-MM-DD
  * @returns {Promise<object>} - Objeto con las lecturas
@@ -114,21 +148,9 @@ async function getReadingsFromVatican(fecha) {
       // Usar Browserless si está configurado
       try {
         const token = process.env.BROWSERLESS_TOKEN;
-        const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
-        console.log('Usando Browserless con token:', tokenPreview);
-        console.log('Token completo para debug:', token);
-        console.log('Longitud del token:', token.length);
-        // Probar con endpoint de websocket
-        const browserlessUrl = `wss://chrome.browserless.io?token=${token}`;
-        console.log('Conectando a:', browserlessUrl.replace(token, 'TOKEN'));
-        
-        browser = await puppeteer.connect({
-          browserWSEndpoint: browserlessUrl
-        });
-        console.log('✅ Conectado a Browserless exitosamente');
+        browser = await conectarBrowserless(token);
       } catch (browserlessError) {
-        console.error('❌ Error con Browserless:', browserlessError.message);
-        console.error('Intentando fallback a Puppeteer local...');
+        console.error('❌ Browserless no disponible, usando fallback a Puppeteer local...');
         try {
           // Intentar con Puppeteer local como fallback
           browser = await puppeteer.launch({
@@ -140,7 +162,7 @@ async function getReadingsFromVatican(fecha) {
           console.error('❌ Error en fallback:', puppeteerError.message);
           const token = process.env.BROWSERLESS_TOKEN;
           const tokenPreview = token.substring(0, 10) + '...' + token.substring(token.length - 5);
-          throw new Error(`No se pudo conectar ni a Browserless (Token: ${tokenPreview}, Error: ${browserlessError.message}) ni a Puppeteer local (Error: ${puppeteerError.message})`);
+          throw new Error(`No se pudo conectar a Browserless (reintentos agotados) ni a Puppeteer local. Token: ${tokenPreview}. Error Browserless: ${browserlessError.message}`);
         }
       }
     } else {
